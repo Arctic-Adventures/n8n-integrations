@@ -1,0 +1,216 @@
+{
+  "name": "BC Booking Department Lookup",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "booking-lookup",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "booking-lookup"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  booking_confirmation_code,\n  product_booking_reference,\n  booking_external_reference,\n  cost_department,\n  supplier_company_registration_number,\n  supplier_name\nFROM `arctic-data.dbt_veiga.bc_booking_department_lookup`\nWHERE \n  (booking_confirmation_code = @booking_number \n   OR product_booking_reference = @booking_number\n   OR booking_external_reference = @booking_number)\n  AND supplier_company_registration_number = @vendor_no\nLIMIT 1",
+        "options": {
+          "queryParameters": [
+            {
+              "name": "booking_number",
+              "type": "STRING",
+              "value": "={{$json.body.booking_number}}"
+            },
+            {
+              "name": "vendor_no",
+              "type": "STRING", 
+              "value": "={{$json.body.vendor_no}}"
+            }
+          ]
+        }
+      },
+      "id": "bigquery-lookup",
+      "name": "BigQuery Lookup",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "googleBigQueryApi": {
+          "id": "1",
+          "name": "BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.length}}",
+              "operation": "greaterThan",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check-if-found",
+      "name": "IF Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "department",
+              "value": "={{$json[0].cost_department}}"
+            },
+            {
+              "name": "booking_number",
+              "value": "={{$json[0].booking_confirmation_code}}"
+            },
+            {
+              "name": "supplier_name",
+              "value": "={{$json[0].supplier_name}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-success",
+      "name": "Format Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "not_found"
+            },
+            {
+              "name": "message",
+              "value": "No booking found matching the criteria"
+            },
+            {
+              "name": "booking_number",
+              "value": "={{$node[\"Webhook\"].json.body.booking_number}}"
+            },
+            {
+              "name": "vendor_no",
+              "value": "={{$node[\"Webhook\"].json.body.vendor_no}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-not-found",
+      "name": "Format Not Found Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log the lookup for monitoring\nconst booking = $input.item.json.booking_number || $node[\"Webhook\"].json.body.booking_number;\nconst vendor = $input.item.json.vendor_no || $node[\"Webhook\"].json.body.vendor_no;\nconst result = $input.item.json.status;\n\nconsole.log(`Booking lookup: ${booking} | Vendor: ${vendor} | Result: ${result}`);\n\nreturn $input.item;"
+      },
+      "id": "log-request",
+      "name": "Log Request",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "BigQuery Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BigQuery Lookup": {
+      "main": [
+        [
+          {
+            "node": "IF Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Found": {
+      "main": [
+        [
+          {
+            "node": "Format Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Not Found Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success Response": {
+      "main": [
+        [
+          {
+            "node": "Log Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Not Found Response": {
+      "main": [
+        [
+          {
+            "node": "Log Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "BC Integration",
+      "createdAt": "2025-08-28T16:00:00.000Z",
+      "updatedAt": "2025-08-28T16:00:00.000Z"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-08-28T16:00:00.000Z",
+  "versionId": "1"
+}
