@@ -1,0 +1,31 @@
+# Environment files
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# Docker volumes data
+postgres_data/
+n8n_data/
+traefik_data/
+
+# Backup files
+*.sql
+backups/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+temp/
