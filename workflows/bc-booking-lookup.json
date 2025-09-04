@@ -1,71 +1,27 @@
 {
-  "name": "BC Booking Department Lookup",
+  "name": "bc-booking-lookup",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "booking-lookup",
         "responseMode": "lastNode",
+        "responseData": "allEntries",
         "options": {}
       },
-      "id": "webhook-trigger",
+      "id": "53ff813e-4b3b-440f-a8d6-cdff6a4a21ba",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300],
+      "position": [
+        -384,
+        -384
+      ],
       "webhookId": "booking-lookup"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  booking_confirmation_code,\n  product_booking_reference,\n  booking_external_reference,\n  cost_department,\n  supplier_company_registration_number,\n  supplier_name\nFROM `arctic-data.dbt_veiga.bc_booking_department_lookup`\nWHERE \n  (booking_confirmation_code = @booking_number \n   OR product_booking_reference = @booking_number\n   OR booking_external_reference = @booking_number)\n  AND supplier_company_registration_number = @vendor_no\nLIMIT 1",
-        "options": {
-          "queryParameters": [
-            {
-              "name": "booking_number",
-              "type": "STRING",
-              "value": "={{$json.body.booking_number}}"
-            },
-            {
-              "name": "vendor_no",
-              "type": "STRING", 
-              "value": "={{$json.body.vendor_no}}"
-            }
-          ]
-        }
-      },
-      "id": "bigquery-lookup",
-      "name": "BigQuery Lookup",
-      "type": "n8n-nodes-base.googleBigQuery",
-      "typeVersion": 1,
-      "position": [450, 300],
-      "credentials": {
-        "googleBigQueryApi": {
-          "id": "1",
-          "name": "BigQuery account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{$json.length}}",
-              "operation": "greaterThan",
-              "value2": 0
-            }
-          ]
-        }
-      },
-      "id": "check-if-found",
-      "name": "IF Found",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [650, 300]
-    },
-    {
-      "parameters": {
+        "keepOnlySet": true,
         "values": {
           "string": [
             {
@@ -74,25 +30,32 @@
             },
             {
               "name": "department",
-              "value": "={{$json[0].cost_department}}"
+              "value": "={{ $json[\"cost_department\"] }}"
             },
             {
               "name": "booking_number",
-              "value": "={{$json[0].booking_confirmation_code}}"
+              "value": "={{ $json[\"booking_confirmation_code\"] }}"
             },
             {
               "name": "supplier_name",
-              "value": "={{$json[0].supplier_name}}"
+              "value": "={{ $json[\"supplier_name\"] }}"
+            },
+            {
+              "name": "bokun_url",
+              "value": "={{ $json[\"bokun_url\"] }}"
             }
           ]
         },
         "options": {}
       },
-      "id": "format-success",
+      "id": "45eca883-7cba-490f-b79c-01dc752307aa",
       "name": "Format Success Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
-      "position": [850, 250]
+      "position": [
+        288,
+        -480
+      ]
     },
     {
       "parameters": {
@@ -118,58 +81,112 @@
         },
         "options": {}
       },
-      "id": "format-not-found",
+      "id": "23ebb6fe-5f48-4fb3-b9e6-75b39e724f31",
       "name": "Format Not Found Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
-      "position": [850, 350]
+      "position": [
+        288,
+        -288
+      ]
     },
     {
       "parameters": {
         "functionCode": "// Log the lookup for monitoring\nconst booking = $input.item.json.booking_number || $node[\"Webhook\"].json.body.booking_number;\nconst vendor = $input.item.json.vendor_no || $node[\"Webhook\"].json.body.vendor_no;\nconst result = $input.item.json.status;\n\nconsole.log(`Booking lookup: ${booking} | Vendor: ${vendor} | Result: ${result}`);\n\nreturn $input.item;"
       },
-      "id": "log-request",
+      "id": "d2216592-a677-449b-8493-cb89fd31ca81",
       "name": "Log Request",
       "type": "n8n-nodes-base.functionItem",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        512,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "arctic-data",
+          "mode": "list",
+          "cachedResultName": "Arctic Data Analytics",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=arctic-data"
+        },
+        "sqlQuery": "  SELECT\n    booking_confirmation_code,\n    product_booking_reference,\n    booking_external_reference,\n    cost_department,\n  supplier_company_registration_number,\n    supplier_name,\n    bokun_url\n  FROM `arctic-data.bc_export.bc_booking_department_lookup`      \n  WHERE\n    (booking_confirmation_code = @booking_number\n     OR product_booking_reference = @booking_number\n     OR booking_external_reference = @booking_number)\n    AND supplier_company_registration_number = @vendor_no        \n  LIMIT 1",
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "=booking_number",
+                "value": "={{ $input.item.json.body.booking_number }}"
+              },
+              {
+                "name": "=vendor_no",
+                "value": "={{ $json.body.vendor_no }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -160,
+        -384
+      ],
+      "id": "209b5391-7705-412c-9463-b63ef46cf751",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "RjWTBJF4AkCHRtkE",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7f10c4a1-8c0b-4666-bb86-85e0fe26e6cc",
+              "leftValue": "={{ $json[0].cost_department }} ",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        -384
+      ],
+      "id": "78408058-2a26-401c-b6b0-06786146e2e6",
+      "name": "If Found"
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
         [
           {
-            "node": "BigQuery Lookup",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "BigQuery Lookup": {
-      "main": [
-        [
-          {
-            "node": "IF Found",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF Found": {
-      "main": [
-        [
-          {
-            "node": "Format Success Response",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Format Not Found Response",
+            "node": "Execute a SQL query",
             "type": "main",
             "index": 0
           }
@@ -197,20 +214,53 @@
           }
         ]
       ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "If Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Found": {
+      "main": [
+        [
+          {
+            "node": "Format Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Not Found Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
+  "versionId": "ef4567e7-e5a0-45d9-ad5c-5f7506117677",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c18e55ea8f35ba90e11543d9e3403f65d51affbe874ca27fa31db29e05c72736"
+  },
+  "id": "IcuzjFl85AXuuDvV",
   "tags": [
     {
-      "name": "BC Integration",
-      "createdAt": "2025-08-28T16:00:00.000Z",
-      "updatedAt": "2025-08-28T16:00:00.000Z"
+      "createdAt": "2025-09-02T15:37:09.141Z",
+      "updatedAt": "2025-09-02T15:37:09.141Z",
+      "id": "Aut0YR80Ps6WRxAY",
+      "name": "BC Integration"
     }
-  ],
-  "triggerCount": 1,
-  "updatedAt": "2025-08-28T16:00:00.000Z",
-  "versionId": "1"
+  ]
 }
